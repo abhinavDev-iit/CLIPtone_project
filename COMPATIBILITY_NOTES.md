@@ -1,0 +1,13 @@
+# Compatibility notes
+
+- Original environment: Python 3.8, PyTorch 1.8.1, CUDA 11.1. Tested environment: Python 3.12.14, torch 2.15.0+cpu, torchvision 0.29.2+cpu, Pillow 11.3.0, Gradio 5.50.0. CUDA is unavailable here. Installation uses a project-local virtual environment.
+- Original extension setup always builds CUDA code, and its bundled wheel is for Python 3.7. Instead of compiling it, `ailut_torch.py` performs the same inference lookup: locate adaptive intervals with `searchsorted`, compute fractional positions, and use 5D `grid_sample` for trilinear interpolation. This keeps the architecture and checkpoint tensors unchanged. It is intended for inference, not a claim of training equivalence.
+- The ONLY official source edit is `from ailut import ailut_transform` → `from ailut_torch import ailut_transform` in `original_cliptone/ailutmodel.py`. CPU and CUDA tensors are supported by the replacement; CUDA has not been tested here.
+- The wrapper uses explicit `map_location` and `weights_only=True` when loading model state dictionaries. It calls `.eval()` and disables gradients for official inference.
+- The wrapper avoids dataset loaders and does not initialize training-only dependencies. It loads OpenAI CLIP directly; text normalization and direction calculation match `criteria.CLIPLoss.compute_text_direction`, apart from float32 arithmetic and an epsilon guard for a zero direction.
+- Original `test.py` appends “ photo.” to the supplied prompt. The wrapper accepts the complete prompt verbatim, avoiding “Warm photo. photo.”. Neutral text remains “Normal photo.”.
+- Input is EXIF-oriented, converted to RGB and scaled to [0,1]; full resolution is retained. Very large images may require considerable memory. CPU threads are capped at four to reduce shared-machine overhead.
+- All three released checkpoints now download and load successfully. The original Google Drive/gdown flow redirects to `doc-0g-b8-docs.googleusercontent.com`, which remains blocked. The downloader instead uses the standard, allowed `drive.usercontent.google.com/download` endpoint. OpenAI's RN50 weights pass the published SHA-256 check.
+- Historical Git LFS pointers were investigated but are not used. The text adaptor is the actual checkpoint downloaded from the authors' linked Google Drive file.
+- Official CPU inference and the Gradio upload/inference endpoint have passed warm, cold and high-contrast checks. GPU execution remains untested. Earlier emergency preview/fallback code was removed after official inference succeeded; bundled results now come from the real model.
+- No training, large dataset download or research benchmark was attempted.
